@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inventario ADSO</title>
+<style>
+  :root { --fondo:#587791; --texto:#000080; --borde:#e0309c; --celda:#ffffff; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:48px 98px; background:var(--fondo); color:var(--texto);
+         font-family:"Segoe UI", Calibri, Arial, sans-serif; font-size:16px; }
+  h1 { font-size:32px; margin:0 0 24px; }
+  h2 { font-size:22px; margin:28px 0 12px; }
+  a { color:#0000ee; }
+  label { margin-right:4px; }
+  input, select { font:inherit; padding:8px; border:1px solid #767676; background:#fff; color:#111; margin-right:8px; }
+  input[type=text], input[type=email] { width:200px; }
+  input[type=number] { width:150px; }
+  button { font:13px Arial, sans-serif; padding:10px 14px; border:1px solid #767676; background:#efefef; color:#000; cursor:pointer; margin:4px 4px 4px 0; }
+  button:hover { background:#e2e2e2; }
+  button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline:3px solid #ffd54a; outline-offset:2px; }
+  button.peligro { border-color:#a40000; color:#a40000; }
+  nav { margin:12px 0 4px; }
+  nav button[aria-selected=true] { background:#fff; border-bottom-color:#fff; font-weight:bold; }
+  .fila { margin:8px 0; }
+  .tabla-caja { overflow-x:auto; margin-top:12px; }
+  table { border-collapse:collapse; width:100%; background:var(--celda); }
+  th, td { border:1px solid var(--borde); padding:10px; text-align:left; }
+  td button { padding:5px 9px; font-size:12px; }
+  #mensaje { min-height:24px; margin:10px 0; font-weight:bold; }
+  #mensaje.error { color:#fff; background:#a40000; padding:6px 10px; display:inline-block; }
+  #mensaje.ok { color:#fff; background:#1b6e2d; padding:6px 10px; display:inline-block; }
+  .vacio { text-align:center; font-style:italic; }
+  #detalle-pedido { margin-top:16px; background:#fff; padding:10px 14px; border:1px solid var(--borde); }
+  .item-fila { margin:6px 0; }
+  .total { font-weight:bold; margin:10px 0; }
+  [hidden] { display:none !important; }
+  @media (max-width:700px) { body { padding:24px 14px; } input[type=text], input[type=email], input[type=number] { width:100%; margin:4px 0; } }
+</style>
+</head>
+<body>
+<h1>Inventario ADSO</h1>
+<a href="/docs" target="_blank" rel="noopener">Abrir Swagger</a>
+
+<nav role="tablist" aria-label="Secciones">
+  <button role="tab" id="tab-productos" aria-selected="true">Productos</button>
+  <button role="tab" id="tab-clientes" aria-selected="false">Clientes</button>
+  <button role="tab" id="tab-pedidos" aria-selected="false">Pedidos</button>
+</nav>
+<div id="mensaje" role="status" aria-live="polite"></div>
+
+<!-- ============ PRODUCTOS ============ -->
+<section id="sec-productos">
+  <div class="fila">
+    <label for="p-nombre">Nombre</label><input type="text" id="p-nombre">
+    <label for="p-precio">Precio</label><input type="number" id="p-precio" min="0" step="0.01">
+    <label for="p-stock">Stock</label><input type="number" id="p-stock" min="0" step="1">
+    <button id="p-guardar">Guardar</button>
+  </div>
+  <div class="fila"><button id="p-recargar">Recargar lista</button></div>
+  <div class="tabla-caja">
+    <table>
+      <thead><tr><th>ID</th><th>Nombre</th><th>Precio</th><th>Stock</th><th>Acciones</th></tr></thead>
+      <tbody id="p-tabla"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ CLIENTES ============ -->
+<section id="sec-clientes" hidden>
+  <div class="fila">
+    <label for="c-nombre">Nombre</label><input type="text" id="c-nombre">
+    <label for="c-correo">Correo</label><input type="email" id="c-correo">
+    <button id="c-guardar">Guardar</button>
+  </div>
+  <div class="fila"><button id="c-recargar">Recargar lista</button></div>
+  <div class="tabla-caja">
+    <table>
+      <thead><tr><th>ID</th><th>Nombre</th><th>Correo</th><th>Acciones</th></tr></thead>
+      <tbody id="c-tabla"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ PEDIDOS ============ -->
+<section id="sec-pedidos" hidden>
+  <h2>Nuevo pedido</h2>
+  <div class="fila">
+    <label for="o-cliente">Cliente</label><select id="o-cliente"></select>
+    <label for="o-estado">Estado</label>
+    <select id="o-estado"><option value="confirmado">confirmado</option><option value="pendiente">pendiente</option></select>
+  </div>
+  <div id="o-items"></div>
+  <div class="fila"><button id="o-agregar">Agregar producto</button></div>
+  <div class="total" id="o-total">Total: 0</div>
+  <button id="o-crear">Crear pedido</button>
+
+  <h2>Pedidos registrados</h2>
+  <div class="fila">
+    <label for="o-filtro">Estado</label>
+    <select id="o-filtro">
+      <option value="">todos</option><option>pendiente</option><option>confirmado</option><option>cancelado</option>
+    </select>
+    <button id="o-recargar">Recargar lista</button>
+  </div>
+  <div class="tabla-caja">
+    <table>
+      <thead><tr><th>ID</th><th>Cliente</th><th>Fecha</th><th>Estado</th><th>Total</th><th>Acciones</th></tr></thead>
+      <tbody id="o-tabla"></tbody>
+    </table>
+  </div>
+  <div id="detalle-pedido" hidden></div>
+</section>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const dinero = (v) => Number(v).toLocaleString('es-CO');
+let productosCache = [];
+
+/* ---------- utilidades ---------- */
+function mensaje(texto, tipo) {
+  const m = $('mensaje');
+  m.textContent = texto || '';
+  m.className = texto ? tipo : '';
+}
+
+async function api(ruta, opciones = {}) {
+  const resp = await fetch(ruta, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opciones,
+    body: opciones.body ? JSON.stringify(opciones.body) : undefined,
+  });
+  if (resp.status === 204) return null;
+  let datos = null;
+  try { datos = await resp.json(); } catch (e) { /* sin cuerpo */ }
+  if (!resp.ok) {
+    let detalle = datos && datos.detail;
+    if (Array.isArray(detalle)) detalle = detalle.map(d => (d.loc ? d.loc.slice(1).join('.') + ': ' : '') + d.msg).join(' | ');
+    throw new Error(`${resp.status} - ${detalle || 'Error en la solicitud'}`);
+  }
+  return datos;
+}
+
+async function intentar(fn, textoOk) {
+  try { await fn(); if (textoOk) mensaje(textoOk, 'ok'); }
+  catch (e) { mensaje(e.message, 'error'); }
+}
+
+function celda(fila, contenido) {
+  const td = document.createElement('td');
+  if (contenido instanceof Node) td.appendChild(contenido); else td.textContent = contenido;
+  fila.appendChild(td);
+}
+
+function boton(texto, onclick, clase) {
+  const b = document.createElement('button');
+  b.textContent = texto;
+  if (clase) b.className = clase;
+  b.addEventListener('click', onclick);
+  return b;
+}
+
+function filaVacia(tbody, columnas, texto) {
+  const tr = document.createElement('tr');
+  const td = document.createElement('td');
+  td.colSpan = columnas; td.className = 'vacio'; td.textContent = texto;
+  tr.appendChild(td); tbody.appendChild(tr);
+}
+
+/* ---------- pestañas ---------- */
+function mostrar(seccion) {
+  for (const s of ['productos', 'clientes', 'pedidos']) {
+    $('sec-' + s).hidden = s !== seccion;
+    $('tab-' + s).setAttribute('aria-selected', s === seccion);
+  }
+  mensaje('');
+  if (seccion === 'productos') cargarProductos();
+  if (seccion === 'clientes') cargarClientes();
+  if (seccion === 'pedidos') prepararPedidos();
+}
+for (const s of ['productos', 'clientes', 'pedidos']) $('tab-' + s).addEventListener('click', () => mostrar(s));
+
+/* ---------- productos ---------- */
+async function cargarProductos() {
+  await intentar(async () => {
+    const lista = await api('/productos?limite=50');
+    productosCache = lista;
+    const tb = $('p-tabla'); tb.innerHTML = '';
+    if (!lista.length) return filaVacia(tb, 5, 'No hay productos. Registre el primero con el formulario.');
+    for (const p of lista) {
+      const tr = document.createElement('tr');
+      celda(tr, p.id); celda(tr, p.nombre); celda(tr, Number(p.precio)); celda(tr, p.stock);
+      const acc = document.createElement('div');
+      acc.append(
+        boton('Cambiar stock', () => cambiarStock(p)),
+        boton('Eliminar', () => eliminarProducto(p), 'peligro')
+      );
+      celda(tr, acc); tb.appendChild(tr);
+    }
+  });
+}
+
+$('p-guardar').addEventListener('click', () => intentar(async () => {
+  const nombre = $('p-nombre').value.trim();
+  const precio = $('p-precio').value;
+  const stock = $('p-stock').value;
+  if (!nombre || precio === '' || stock === '') throw new Error('Complete nombre, precio y stock.');
+  await api('/productos', { method: 'POST', body: { nombre, precio, stock: Number(stock) } });
+  $('p-nombre').value = $('p-precio').value = $('p-stock').value = '';
+  await cargarProductos();
+}, 'Producto guardado'));
+$('p-recargar').addEventListener('click', cargarProductos);
+
+function cambiarStock(p) {
+  const nuevo = prompt(`Nuevo stock para "${p.nombre}":`, p.stock);
+  if (nuevo === null) return;
+  intentar(async () => {
+    await api(`/productos/${p.id}/stock?stock=${encodeURIComponent(nuevo)}`, { method: 'PATCH' });
+    await cargarProductos();
+  }, 'Stock actualizado');
+}
+function eliminarProducto(p) {
+  if (!confirm(`¿Eliminar "${p.nombre}"?`)) return;
+  intentar(async () => { await api(`/productos/${p.id}`, { method: 'DELETE' }); await cargarProductos(); }, 'Producto eliminado');
+}
+
+/* ---------- clientes ---------- */
+async function cargarClientes() {
+  await intentar(async () => {
+    const lista = await api('/clientes');
+    const tb = $('c-tabla'); tb.innerHTML = '';
+    if (!lista.length) return filaVacia(tb, 4, 'No hay clientes. Registre el primero con el formulario.');
+    for (const c of lista) {
+      const tr = document.createElement('tr');
+      celda(tr, c.id); celda(tr, c.nombre); celda(tr, c.correo);
+      const acc = document.createElement('div');
+      acc.append(
+        boton('Editar', () => editarCliente(c)),
+        boton('Eliminar', () => eliminarCliente(c), 'peligro')
+      );
+      celda(tr, acc); tb.appendChild(tr);
+    }
+  });
+}
+$('c-guardar').addEventListener('click', () => intentar(async () => {
+  const nombre = $('c-nombre').value.trim();
+  const correo = $('c-correo').value.trim();
+  if (!nombre || !correo) throw new Error('Complete nombre y correo.');
+  await api('/clientes', { method: 'POST', body: { nombre, correo } });
+  $('c-nombre').value = $('c-correo').value = '';
+  await cargarClientes();
+}, 'Cliente guardado'));
+$('c-recargar').addEventListener('click', cargarClientes);
+
+function editarCliente(c) {
+  const nombre = prompt('Nombre:', c.nombre); if (nombre === null) return;
+  const correo = prompt('Correo:', c.correo); if (correo === null) return;
+  intentar(async () => {
+    await api(`/clientes/${c.id}`, { method: 'PUT', body: { nombre: nombre.trim(), correo: correo.trim() } });
+    await cargarClientes();
+  }, 'Cliente actualizado');
+}
+function eliminarCliente(c) {
+  if (!confirm(`¿Eliminar a "${c.nombre}"?`)) return;
+  intentar(async () => { await api(`/clientes/${c.id}`, { method: 'DELETE' }); await cargarClientes(); }, 'Cliente eliminado');
+}
+
+/* ---------- pedidos ---------- */
+async function prepararPedidos() {
+  await intentar(async () => {
+    const [clientes, productos] = await Promise.all([api('/clientes'), api('/productos?limite=50')]);
+    productosCache = productos;
+    const sel = $('o-cliente'); sel.innerHTML = '';
+    for (const c of clientes) sel.add(new Option(`${c.id} - ${c.nombre}`, c.id));
+    if (!$('o-items').children.length) agregarItem();
+    else refrescarOpcionesItems();
+    calcularTotal();
+    await cargarPedidos();
+  });
+}
+
+function opcionesProducto(select, valor) {
+  select.innerHTML = '';
+  for (const p of productosCache) select.add(new Option(`${p.nombre} (stock ${p.stock}) - ${dinero(p.precio)}`, p.id));
+  if (valor) select.value = valor;
+}
+function refrescarOpcionesItems() {
+  for (const fila of $('o-items').children) {
+    const s = fila.querySelector('select');
+    opcionesProducto(s, s.value);
+  }
+}
+function agregarItem() {
+  const fila = document.createElement('div'); fila.className = 'item-fila';
+  const sel = document.createElement('select'); opcionesProducto(sel);
+  const cant = document.createElement('input'); cant.type = 'number'; cant.min = 1; cant.step = 1; cant.value = 1;
+  cant.setAttribute('aria-label', 'Cantidad');
+  sel.addEventListener('change', calcularTotal); cant.addEventListener('input', calcularTotal);
+  fila.append(sel, cant, boton('Quitar', () => { fila.remove(); calcularTotal(); }, 'peligro'));
+  $('o-items').appendChild(fila);
+  calcularTotal();
+}
+function calcularTotal() {
+  let total = 0;
+  for (const fila of $('o-items').children) {
+    const p = productosCache.find(x => String(x.id) === fila.querySelector('select').value);
+    const c = Number(fila.querySelector('input').value) || 0;
+    if (p) total += Number(p.precio) * c;
+  }
+  $('o-total').textContent = 'Total: ' + dinero(total);
+}
+$('o-agregar').addEventListener('click', agregarItem);
+
+$('o-crear').addEventListener('click', () => intentar(async () => {
+  const cliente_id = Number($('o-cliente').value);
+  const items = [...$('o-items').children].map(f => ({
+    producto_id: Number(f.querySelector('select').value),
+    cantidad: Number(f.querySelector('input').value),
+  }));
+  if (!cliente_id) throw new Error('Registre y seleccione un cliente.');
+  const r = await api('/pedidos', { method: 'POST', body: { cliente_id, items, estado: $('o-estado').value } });
+  $('o-items').innerHTML = '';
+  await prepararPedidos();
+  mensaje(`Pedido ${r.id} creado. Total: ${dinero(r.total)}`, 'ok');
+}));
+
+async function cargarPedidos() {
+  const estado = $('o-filtro').value;
+  const lista = await api('/pedidos' + (estado ? `?estado=${estado}` : ''));
+  const tb = $('o-tabla'); tb.innerHTML = '';
+  if (!lista.length) return filaVacia(tb, 6, 'No hay pedidos con este filtro.');
+  for (const p of lista) {
+    const tr = document.createElement('tr');
+    celda(tr, p.id); celda(tr, p.cliente);
+    celda(tr, new Date(p.fecha).toLocaleString('es-CO')); celda(tr, p.estado); celda(tr, dinero(p.total));
+    const acc = document.createElement('div');
+    acc.append(boton('Ver detalle', () => verDetalle(p.id)));
+    if (p.estado === 'pendiente') acc.append(boton('Confirmar', () => cambiarEstado(p.id, 'confirmado')));
+    if (p.estado !== 'cancelado') acc.append(boton('Cancelar', () => cancelarPedido(p.id), 'peligro'));
+    celda(tr, acc); tb.appendChild(tr);
+  }
+}
+$('o-recargar').addEventListener('click', () => intentar(cargarPedidos));
+$('o-filtro').addEventListener('change', () => intentar(cargarPedidos));
+
+function verDetalle(id) {
+  intentar(async () => {
+    const p = await api(`/pedidos/${id}`);
+    const caja = $('detalle-pedido'); caja.hidden = false; caja.innerHTML = '';
+    const t = document.createElement('strong');
+    t.textContent = `Pedido ${p.id} - ${p.cliente} - ${p.estado} - Total ${dinero(p.total)}`;
+    caja.appendChild(t);
+    const tabla = document.createElement('table');
+    tabla.innerHTML = '<thead><tr><th>Producto</th><th>Cantidad</th><th>Precio unitario</th><th>Subtotal</th></tr></thead>';
+    const tb = document.createElement('tbody');
+    for (const i of p.items) {
+      const tr = document.createElement('tr');
+      celda(tr, i.producto); celda(tr, i.cantidad); celda(tr, dinero(i.precio_unitario)); celda(tr, dinero(i.subtotal));
+      tb.appendChild(tr);
+    }
+    tabla.appendChild(tb); caja.appendChild(tabla);
+  });
+}
+function cambiarEstado(id, estado) {
+  intentar(async () => {
+    await api(`/pedidos/${id}/estado`, { method: 'PATCH', body: { estado } });
+    await cargarPedidos();
+  }, `Pedido ${id} ${estado}`);
+}
+function cancelarPedido(id) {
+  if (!confirm(`¿Cancelar el pedido ${id}? Se devolverá el stock.`)) return;
+  intentar(async () => {
+    await api(`/pedidos/${id}/cancelar`, { method: 'POST' });
+    await prepararPedidos();
+  }, `Pedido ${id} cancelado y stock devuelto`);
+}
+
+cargarProductos();
+</script>
+</body>
+</html>
